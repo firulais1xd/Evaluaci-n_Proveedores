@@ -1,0 +1,15 @@
+# Entornos y caché
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Secretos: nunca se suben
+.streamlit/secrets.toml
+
+# Datos de proveedores: no se suben al repositorio
+historial/*.json
+config/ponderaciones.json
+*.xlsx
+*.docx
+*.zip

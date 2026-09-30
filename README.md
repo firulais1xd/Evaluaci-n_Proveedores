@@ -1,29 +1,73 @@
-# Evaluación de Proveedores (app local)
+# Evaluación de Proveedores
 
-App de Streamlit que toma el archivo **EvaluacionResumenPeriodo** de la plataforma y genera:
+App de Streamlit que toma el archivo **EvaluacionResumenPeriodo** de la plataforma y genera el Resumen General,
+el Informe de gestión en Word, las fichas por proveedor, la comparación entre periodos y los datos para Power BI.
 
-- Resumen general por tipo de evaluación (mismo formato de la plataforma) en Excel.
-- Informe de gestión en Word con una gráfica por tipo de proveedor, consolidados, calificación por área,
-  resumen general, conclusiones y acciones para la mejora.
-- Fichas por proveedor en Word: criterios frente al promedio del tipo, puesto, brecha para subir de categoría y evolución.
-- Comparación entre periodos (semestres o años) a partir del historial guardado.
+Elaborado por **Jersson David Navarro Cáceres**.
 
-La categoría se recalcula desde la columna **Final**: ≥ 98% excelente, 80–98% muy bueno, 70–80% bueno,
-60–70% regular, < 60% malo.
+## Qué hace
 
-## Requisitos
+- Lee cada hoja del archivo (un tipo de evaluación por hoja) y reconoce el tipo de proveedor y el área por el código
+  y el título.
+- Recalcula el Final sin contar los criterios en blanco, conservando la ponderación de la plataforma.
+- Asigna la categoría: excelente ≥ 98%, muy bueno 80–98%, bueno 70–80%, regular 60–70%, malo < 60%.
+- Pestañas: Consolidado, Por área y tipo, Ficha por proveedor, Comparativo, Histórico, Cálculo del Final,
+  Revisión de datos y Descargas.
+- Descargas: Resumen General (.xlsx), Informe de gestión (.docx), fichas (.docx), histórico (.xlsx) y datos para
+  Power BI (.xlsx).
 
-Python 3.10 o superior (https://www.python.org/downloads/). En Windows, marca **"Add Python to PATH"** al instalar.
+## Estructura
 
-## Cómo abrirla
+```
+app.py                      interfaz de Streamlit
+core/analisis.py            lectura del archivo, recálculo del Final, análisis y textos
+core/historico.py           comparación de varios periodos
+core/exportar.py            Excel, Word y datos para Power BI
+requirements.txt            librerías
+.streamlit/config.toml      configuración de Streamlit
+.streamlit/secrets.toml.example   ejemplo de clave de acceso
+historial/                  periodos guardados (no se suben al repositorio)
+config/                     ponderaciones escritas a mano (no se suben)
+```
 
-- **Windows:** doble clic en `iniciar.bat`.
-- **Mac / Linux:** ejecuta `./iniciar.sh` en una terminal dentro de esta carpeta.
+## Publicar en Streamlit Community Cloud
 
-La primera vez tarda un par de minutos porque instala las librerías. Luego se abre el navegador en
-http://localhost:8501. Para cerrarla, cierra la ventana de la consola.
+1. **Crear el repositorio en GitHub.** En github.com → *New repository*. Se recomienda marcarlo como **Private**:
+   en Streamlit Cloud una app de un repositorio privado también es privada y solo la ven las personas que invites.
+2. **Subir los archivos.** En el repositorio → *Add file* → *Upload files* y arrastra el contenido de esta carpeta
+   (no la carpeta en sí: `app.py` debe quedar en la raíz). Luego *Commit changes*.
+   Las carpetas `.streamlit` y el archivo `.gitignore` son opcionales; si tu sistema oculta los archivos que
+   empiezan por punto y no se suben, la app funciona igual.
+3. **Crear la app.** Entra a [share.streamlit.io](https://share.streamlit.io) con tu cuenta de GitHub →
+   *Create app* → elige el repositorio, la rama `main` y el archivo `app.py`.
+4. **Configuración avanzada (opcional).** En *Advanced settings* deja Python 3.12 y, si quieres una clave de acceso,
+   pega en *Secrets*:
+   ```toml
+   clave = "tu-clave-segura"
+   ```
+   Sin esa línea la app no pide clave.
+5. **Deploy.** La primera vez tarda unos minutos mientras instala las librerías.
+6. **Compartir.** Con la app abierta → *Share* → escribe los correos de las personas que la van a usar.
 
-Instalación manual, si prefieres:
+Cada vez que cambies un archivo en GitHub, la app se actualiza sola.
+
+## Historial en la nube: descarga el respaldo
+
+Streamlit Cloud **borra los archivos guardados cuando la app se reinicia, se actualiza o se duerme por inactividad**.
+Por eso la barra lateral tiene **Respaldo del historial**:
+
+- Después de guardar un periodo, pulsa **Descargar respaldo (.zip)** y guarda el archivo en tu equipo o en una
+  carpeta compartida.
+- Si al abrir la app el historial está vacío, sube ese .zip en **Restaurar desde respaldo** y pulsa **Restaurar**.
+
+También puedes volver a cargar los archivos originales de cada año con **Cargar varios periodos al historial**.
+
+## Datos de proveedores
+
+El `.gitignore` evita que se suban al repositorio los periodos guardados, los Excel y los Word, porque contienen
+nombres y NIT de proveedores. No subas el archivo de la plataforma ni los informes al repositorio.
+
+## Usarla en tu equipo
 
 ```
 python -m venv .venv
@@ -33,53 +77,19 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## Uso cada periodo
+Para usar clave en tu equipo, copia `.streamlit/secrets.toml.example` como `.streamlit/secrets.toml` y cambia la clave.
 
-1. En la barra lateral, sube el archivo EvaluacionResumenPeriodo y escribe el nombre del periodo (p. ej. `2026-1`).
-2. En **Comparar con** elige el periodo anterior (por defecto toma el guardado más reciente).
-3. Revisa las pestañas: Consolidado, Por área y tipo, Ficha por proveedor, Comparativo y Revisión de datos.
-4. Pulsa **Guardar este periodo en el historial** para poder compararlo más adelante.
-5. En **Descargas** edita las conclusiones y descarga el Excel, el informe Word y las fichas.
+## Uso en cada periodo
 
-## Criterios en blanco y cálculo del Final
+1. Sube el archivo EvaluacionResumenPeriodo y escribe el nombre del periodo (p. ej. `2026-1`).
+2. En **Comparar con** elige uno o varios periodos guardados.
+3. Revisa las pestañas y pulsa **Guardar este periodo en el historial**.
+4. Descarga el respaldo del historial.
+5. En **Descargas** ajusta las conclusiones y descarga el Excel, el informe y las fichas.
 
-La plataforma calcula el Final como promedio **ponderado** de los criterios y toma los criterios en blanco como 0.
-Por defecto la app recalcula el Final de las filas con criterios en blanco sin tenerlos en cuenta, conservando la
-ponderación de los demás (los pesos se deducen de los mismos datos). Las filas completas conservan el Final de la
-plataforma. En la barra lateral, **Criterios en blanco** permite volver al Final de la plataforma.
+## Criterios en blanco
 
-La pestaña **Cálculo del Final** muestra las filas recalculadas y los pesos de cada tipo. Si un peso no se puede
-deducir, la app supone el mismo peso para todos los criterios; puedes escribir el peso real y guardarlo
-(queda en `config/ponderaciones.json`).
-
-## Comparar contra uno o varios periodos
-
-En la barra lateral, **Comparar con** permite elegir uno o varios periodos guardados. Las variaciones (pp,
-mejoraron, bajaron) se calculan frente al periodo anterior más reciente; los demás aparecen como columnas y
-series adicionales en Consolidado, Por área y tipo y Comparativo, y como tablas extra en el Excel y el Word.
-En la pestaña Comparativo puedes elegir contra cuál de ellos ver los movimientos de proveedores.
-
-## Comparar varios años (pestaña Histórico)
-
-1. En la barra lateral abre **Cargar varios periodos al historial** y sube de una vez los archivos de los años
-   anteriores (por ejemplo 2022, 2023 y 2024).
-2. Revisa el nombre de cada periodo (la app lo adivina si el nombre del archivo trae el año) y pulsa
-   **Guardar todos en el historial**.
-3. En la pestaña **Histórico** elige los periodos a comparar. Verás la evolución del promedio general, la
-   distribución por categoría, el promedio por área y por tipo, los proveedores que quedaron bajo 80% en varios
-   periodos y un buscador por proveedor. El botón **Descargar histórico (.xlsx)** exporta todas esas tablas.
-
-La ficha de cada proveedor también muestra su evolución en todos los periodos guardados, y la descarga
-"Datos para Power BI" incluye todos los periodos.
-
-## Historial
-
-Cada periodo guardado es un archivo JSON dentro de la carpeta `historial/` (ya incluye `2025.json`).
-Para respaldar el historial copia esa carpeta. Para quitar un periodo usa **Eliminar un periodo guardado**
-en la barra lateral o borra su archivo.
-
-## Nombres de tipos de proveedor y áreas
-
-Están en `core/analisis.py`, en `TYPE_NAMES` (nombre corto por código de evaluación) y `PROC` (área según las
-dos primeras letras del código: CP, CE, MN, GH, ST, GA, VT, MT, GI, SB, GC, EN). Si la plataforma agrega una
-evaluación nueva, la app toma el nombre del título de la hoja; puedes agregarla a `TYPE_NAMES` para acortarlo.
+La plataforma calcula el Final como promedio ponderado de los criterios y toma los criterios en blanco como 0. La app
+recalcula el Final de esas filas sin tenerlos en cuenta, conservando los pesos de los demás criterios (se deducen de
+los mismos datos). En la barra lateral, **Criterios en blanco** permite volver al Final de la plataforma. La pestaña
+**Cálculo del Final** muestra las filas recalculadas y los pesos de cada tipo.

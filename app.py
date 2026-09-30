@@ -1,12 +1,15 @@
-"""Evaluación de Proveedores — app local de Streamlit.
+"""Evaluación de Proveedores — app de Streamlit (local o Streamlit Community Cloud).
 
 Ejecutar con:  streamlit run app.py
 """
 from __future__ import annotations
 
 import hashlib
+import hmac
+import io
 import json
 import re
+import zipfile
 from datetime import date
 from pathlib import Path
 
@@ -30,6 +33,27 @@ CONF.mkdir(exist_ok=True)
 POND = CONF / "ponderaciones.json"
 
 st.set_page_config(page_title="Evaluación de Proveedores", page_icon="📋", layout="wide")
+
+
+# ---------------------------------------------------------------- clave de acceso (opcional)
+def _secret(name: str) -> str:
+    try:
+        return str(st.secrets.get(name, "") or "")
+    except Exception:  # sin archivo de secretos: la app queda sin clave
+        return ""
+
+
+CLAVE = _secret("clave")
+if CLAVE and not st.session_state.get("autenticado"):
+    st.title("Evaluación de Proveedores")
+    with st.form("login"):
+        intento = st.text_input("Clave de acceso", type="password")
+        if st.form_submit_button("Entrar", type="primary"):
+            if hmac.compare_digest(intento.encode(), CLAVE.encode()):
+                st.session_state["autenticado"] = True
+                st.rerun()
+            st.error("Clave incorrecta.")
+    st.stop()
 st.markdown("""
 <style>
 .block-container{padding-top:2rem;max-width:1300px}
@@ -197,6 +221,44 @@ with st.sidebar:
                 if ok:
                     st.success("Guardados: " + ", ".join(ok))
                     st.rerun()
+
+    with st.expander("Respaldo del historial"):
+        st.caption("En Streamlit Cloud el historial se borra cuando la app se reinicia o se actualiza. Descarga el "
+                   "respaldo después de guardar un periodo y súbelo aquí para recuperarlo.")
+        if hist:
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+                for f in sorted(HIST.glob("*.json")):
+                    z.write(f, f.name)
+            st.download_button("Descargar respaldo (.zip)", buf.getvalue(), key="bk_dl", width="stretch",
+                               file_name=f"historial-proveedores-{date.today():%Y%m%d}.zip", mime="application/zip")
+        bk = st.file_uploader("Restaurar desde respaldo (.zip o .json)", type=["zip", "json"],
+                              accept_multiple_files=True, key="bk_up")
+        if bk and st.button("Restaurar", key="bk_btn", width="stretch"):
+            docs, errs = [], []
+            for f in bk:
+                try:
+                    if f.name.lower().endswith(".zip"):
+                        with zipfile.ZipFile(io.BytesIO(f.getvalue())) as z:
+                            docs += [json.loads(z.read(n).decode("utf-8")) for n in z.namelist()
+                                     if n.lower().endswith(".json") and not n.startswith("__MACOSX")]
+                    else:
+                        docs.append(json.loads(f.getvalue().decode("utf-8")))
+                except Exception as e:
+                    errs.append(f"{f.name}: {e}")
+            ok = []
+            for d in docs:
+                try:
+                    from_stored(d)  # valida la estructura antes de guardar
+                    (HIST / f"{slug(d['label'])}.json").write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+                    ok.append(d["label"])
+                except Exception as e:
+                    errs.append(f"{d.get('label', '?') if isinstance(d, dict) else '?'}: formato no válido ({e})")
+            if errs:
+                st.error("No se pudieron restaurar: " + "; ".join(errs))
+            if ok:
+                st.success("Restaurados: " + ", ".join(ok))
+                st.rerun()
 
 # ---------------------------------------------------------------- encabezado
 st.title("Evaluación de Proveedores")
